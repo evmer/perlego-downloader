@@ -60,33 +60,22 @@ while True:
 			contents[chapter_no][chunk_no] = data['data']['content']
 
 			# check if all chunks of all merged chapters have been downloaded
-			all_downloaded = True
-			for i in range(page_id, page_id+number_of_merged_chapters):
-				if contents[i] == {}: all_downloaded = False; continue
-				for (_, chunk) in contents[i].items():
-					if chunk == "":
-						all_downloaded = False
-			if not all_downloaded:
-				continue
+			if all(contents[i] != {} and all(chunk != "" for chunk in contents[i].values()) for i in range(page_id, page_id+number_of_merged_chapters)):
 
-			# check if all chapters have been downloaded
-			all_downloaded = True
-			for i in [page_id]+chapters[page_id]:
-				if contents[i] == {}:
-					all_downloaded = False
+				# check if all chapters have been downloaded
+				if all(contents[i] != {} for i in [page_id]+chapters[page_id]):
 
-			if all_downloaded:
-				print(f"chapters {'-'.join(str(i) for i in range(page_id, page_id+number_of_merged_chapters))} downloaded")
-				merged_chapter_part_idx = 0
-				try:
-					next_page = list(chapters)[list(chapters).index(page_id) + 1]
-				except IndexError:
-					break
-			else:
-				merged_chapter_part_idx += 1
-				next_page = page_id
+					print(f"chapters {'-'.join(str(i) for i in range(page_id, page_id+number_of_merged_chapters))} downloaded")
+					merged_chapter_part_idx = 0
+					try:
+						next_page = list(chapters)[list(chapters).index(page_id) + 1]
+					except IndexError:
+						break
+				else:
+					merged_chapter_part_idx += 1
+					next_page = page_id
 
-			ws.send(json.dumps({"action":"loadPage","data":{"authToken": AUTH_TOKEN, "pageId": str(next_page), "bookType":"EPUB", "windowWidth":1792, "mergedChapterPartIndex":merged_chapter_part_idx}}))
+				ws.send(json.dumps({"action":"loadPage","data":{"authToken": AUTH_TOKEN, "pageId": str(next_page), "bookType":"EPUB", "windowWidth":1792, "mergedChapterPartIndex":merged_chapter_part_idx}}))
 
 	break
 
