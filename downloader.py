@@ -29,24 +29,40 @@ while True:
 	while True:
 		data = json.loads(ws.recv())
 
-		if data['event'] == 'initialisationDataChunk':		
-			chapters = {}
-			contents = {}
+		if data['event'] == 'initialisationDataChunk':
+			data_content = json.loads(json.loads(data['data']['content']))
+			book_format = data_content['bookType']
 			merged_chapter_part_idx = 0
-			bookmap = json.loads(json.loads(data['data']['content']))['bookMap']
-			for chapter_no in bookmap:
-				chapters[int(chapter_no)] = []
-				contents[int(chapter_no)] = {}
-				for subchapter_no in bookmap[chapter_no]:
-					chapters[int(chapter_no)].append(subchapter_no)
-					contents[subchapter_no] = {}
-			ws.send(json.dumps({"action":"loadPage","data":{"authToken": AUTH_TOKEN, "pageId": list(chapters)[0], "bookType":"EPUB", "windowWidth":1792, "mergedChapterPartIndex":0}}))
+
+			if book_format == 'EPUB':
+				chapters = {}
+				contents = {}
+				bookmap = data_content['bookMap']
+				for chapter_no in bookmap:
+					chapters[int(chapter_no)] = []
+					contents[int(chapter_no)] = {}
+					for subchapter_no in bookmap[chapter_no]:
+						chapters[int(chapter_no)].append(subchapter_no)
+						contents[subchapter_no] = {}
+
+			elif book_format == 'PDF':
+				chapters = {}
+				contents = {}
+				for i in range(1, data_content['numberOfChapters'] + 1):
+					chapters[i] = []
+					contents[i] = {}
+
+			else:
+				raise Exception(f'unknown book format ({book_format})!')
+
+			ws.send(json.dumps({"action":"loadPage","data":{"authToken": AUTH_TOKEN, "pageId": list(chapters)[0], "bookType": book_format, "windowWidth":1792, "mergedChapterPartIndex":0}}))
+
 
 		elif 'pageChunk' in data['event']:
 			page_id = int(data['data']['pageId'])
 
-			merged_chapter_no = int(data['data']['mergedChapterNumber']) - 1
-			number_of_merged_chapters = int(data['data']['numberOfMergedChapters'])
+			merged_chapter_no = (int(data['data']['mergedChapterNumber']) - 1) if book_format == 'EPUB' else 0
+			number_of_merged_chapters = int(data['data']['numberOfMergedChapters']) if book_format == 'EPUB' else 1
 
 			chunk_no = int(data['data']['chunkNumber']) - 1
 			number_of_chunks = int(data['data']['numberOfChunks'])
@@ -59,13 +75,13 @@ while True:
 
 			contents[chapter_no][chunk_no] = data['data']['content']
 
-			# check if all chunks of all merged chapters have been downloaded
+			# check if all chunks of all merged pages/chapters have been downloaded
 			if all(contents[i] != {} and all(chunk != "" for chunk in contents[i].values()) for i in range(page_id, page_id+number_of_merged_chapters)):
 
-				# check if all chapters have been downloaded
+				# check if all pages/chapters have been downloaded
 				if all(contents[i] != {} for i in [page_id]+chapters[page_id]):
 
-					print(f"chapters {'-'.join(str(i) for i in range(page_id, page_id+number_of_merged_chapters))} downloaded")
+					print(f"{'chapters' if book_format == 'EPUB' else 'page'} {'-'.join(str(i) for i in range(page_id, page_id+number_of_merged_chapters))} downloaded")
 					merged_chapter_part_idx = 0
 					try:
 						next_page = list(chapters)[list(chapters).index(page_id) + 1]
@@ -75,7 +91,7 @@ while True:
 					merged_chapter_part_idx += 1
 					next_page = page_id
 
-				ws.send(json.dumps({"action":"loadPage","data":{"authToken": AUTH_TOKEN, "pageId": str(next_page), "bookType":"EPUB", "windowWidth":1792, "mergedChapterPartIndex":merged_chapter_part_idx}}))
+				ws.send(json.dumps({"action":"loadPage","data":{"authToken": AUTH_TOKEN, "pageId": str(next_page), "bookType": book_format, "windowWidth":1792, "mergedChapterPartIndex":merged_chapter_part_idx}}))
 
 	break
 
@@ -111,6 +127,14 @@ for chapter_no in contents:
 		img_new = img.replace('opacity: 0', 'opacity: 1')
 		img_new = img_new.replace('data-src', 'src')
 		content = content.replace(img, img_new)
+
+	# replace object with img (PDF books)
+	objects = re.findall("<object.*?</object>", content, re.S)
+	for obj in objects:
+		obj_new = obj.replace('</object>', '')
+		obj_new = obj_new.replace('object', 'img')
+		obj_new = obj_new.replace('data="', 'src="')
+		content = content.replace(obj, obj_new)
 
 	# save page in the cache dir
 	f = open(f'epub_{BOOK_ID}/{page_no}.html', 'w')
