@@ -3,13 +3,14 @@ import websocket
 import requests
 import shutil
 import pdfkit
+import base64
 import time
 import json
 import re
 import os
 
 BOOK_ID = "#BOOK_ID#"
-AUTH_TOKEN = "#AUTH_TOKEN#"
+AUTH_TOKEN = "#AUTH_TOKEN#
 
 # download pages
 while True:
@@ -96,7 +97,7 @@ while True:
 	break
 
 # create cache dir
-cache_dir = f'epub_{BOOK_ID}'
+cache_dir = f'{book_format}_{BOOK_ID}'
 try:
 	os.mkdir(cache_dir)
 except FileExistsError:
@@ -128,23 +129,28 @@ for chapter_no in contents:
 		img_new = img_new.replace('data-src', 'src')
 		content = content.replace(img, img_new)
 
-	# replace object with img (PDF books)
+	# replace objects
 	objects = re.findall("<object.*?</object>", content, re.S)
 	for obj in objects:
-		obj_new = obj.replace('</object>', '')
-		obj_new = obj_new.replace('object', 'img')
-		obj_new = obj_new.replace('data="', 'src="')
-		content = content.replace(obj, obj_new)
+		src = re.search('data="(.*?)"', obj).group(1)
+		if 'base64,' in src:
+			b64 = base64.b64decode(src.split('base64,')[1]).decode('utf-8')
+			content = content.replace(obj, b64)
+		else:
+			obj_new = obj.replace('</object>', '')
+			obj_new = obj_new.replace('object', 'img')
+			obj_new = obj_new.replace('data="', 'src="')
+			content = content.replace(obj, obj_new)
 
 	# save page in the cache dir
-	f = open(f'epub_{BOOK_ID}/{page_no}.html', 'w')
+	f = open(f'{book_format}_{BOOK_ID}/{page_no}.html', 'w', encoding='utf-8')
 	f.write(content)
 	f.close()
 
 	page_no += 1
 
-pdfkit.from_file([f'epub_{BOOK_ID}/{i}.html' for i in range(page_no)], f'{BOOK_ID}.pdf', options={'encoding': 'UTF-8'})
+pdfkit.from_file([f'{book_format}_{BOOK_ID}/{i}.html' for i in range(page_no)], f'{BOOK_ID}.pdf', options={'encoding': 'UTF-8'})
 print(f'{BOOK_ID}.pdf created!')
 
 # delete cache dir
-shutil.rmtree(f'epub_{BOOK_ID}')
+shutil.rmtree(f'{book_format}_{BOOK_ID}')
