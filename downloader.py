@@ -10,7 +10,7 @@ import re
 import os
 
 BOOK_ID = "#BOOK_ID#"
-AUTH_TOKEN = "#AUTH_TOKEN#
+AUTH_TOKEN = "#AUTH_TOKEN#"
 
 # download pages
 while True:
