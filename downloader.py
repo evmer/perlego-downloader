@@ -155,7 +155,7 @@ for chapter_no in contents:
 
 	page_no += 1
 
-pdfkit.from_file([f'{book_format}_{BOOK_ID}/{i}.html' for i in range(page_no)], f'{BOOK_ID}.pdf', options={'encoding': 'UTF-8'})
+pdfkit.from_file([f'{book_format}_{BOOK_ID}/{i}.html' for i in range(page_no)], f'{BOOK_ID}.pdf', options={'encoding': 'UTF-8', 'enable-local-file-access': None})
 print(f'{BOOK_ID}.pdf created!')
 
 # delete cache dir
