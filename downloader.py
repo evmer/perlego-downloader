@@ -77,12 +77,12 @@ while True:
 			contents[chapter_no][chunk_no] = data['data']['content']
 
 			# check if all chunks of all merged pages/chapters have been downloaded
-			if all(contents[i] != {} and all(chunk != "" for chunk in contents[i].values()) for i in range(page_id, page_id+number_of_merged_chapters)):
+			if all(contents[i] != {} and all(chunk != "" for chunk in contents[i].values()) for i in range(page_id, page_id+number_of_merged_chapters+merged_chapter_part_idx)):
 
 				# check if all pages/chapters have been downloaded
 				if all(contents[i] != {} for i in [page_id]+chapters[page_id]):
 
-					print(f"{'chapters' if book_format == 'EPUB' else 'page'} {'-'.join(str(i) for i in range(page_id, page_id+number_of_merged_chapters))} downloaded")
+					print(f"{'chapters' if book_format == 'EPUB' else 'page'} {'-'.join(str(i) for i in range(page_id, page_id+number_of_merged_chapters+merged_chapter_part_idx))} downloaded")
 					merged_chapter_part_idx = 0
 					try:
 						next_page = list(chapters)[list(chapters).index(page_id) + 1]
@@ -121,6 +121,12 @@ for chapter_no in contents:
 		height = re.search('height="([0-9]*)"', svg).group(1)
 		width = re.search('width="([0-9]*)"', svg).group(1)
 		content = content.replace(svg, f'<img src="{url}" width="{width}" height="{height}">')
+
+	# replace picture
+	pictures = re.findall("<picture.*?</picture>", content, re.S)
+	for picture in pictures:
+		url = re.search('data-src="(.*?)"', picture).group(1)
+		content = content.replace(picture, f'<img src="{url}">')
 
 	# reveal hidden images
 	imgs = re.findall("<img.*?>", content, re.S)
