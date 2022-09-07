@@ -2,20 +2,9 @@
 Download books from Perlego.com in PDF format.
 
 ## Installation
-### Install wkhtmltopdf:
-  **• Windows:** 
-  
-  Download intaller [from here](https://wkhtmltopdf.org/downloads.html).
 
-  **• Debian/Ubuntu:**
-  
-  Get a static version of wkhtmltopdf [from here](https://wkhtmltopdf.org/downloads.html) or download the latest release:
-  >$ sudo apt-get install wkhtmltopdf
-  
-  **• macOS:**
-  >$ brew install wkhtmltopdf
+Install Python 3 and run:
 
-### Install python dependencies:
   >$ pip3 install -r requirements.txt
 
 ## Configuration
