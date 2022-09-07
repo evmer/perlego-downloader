@@ -1,18 +1,22 @@
-from datetime import datetime
-import websocket
-import requests
+from io import BytesIO
+from PIL import Image
+import asyncio
 import shutil
-import pdfkit
 import base64
 import time
 import json
 import re
 import os
 
+import requests
+import websocket
+from pyppeteer import launch
+from PyPDF2 import PdfMerger
+
 BOOK_ID = "#BOOK_ID#"
 AUTH_TOKEN = "#AUTH_TOKEN#"
 
-# download pages
+# download pages content
 while True:
 	while True:
 		try:
@@ -97,66 +101,96 @@ while True:
 	break
 
 # create cache dir
-cache_dir = f'{book_format}_{BOOK_ID}'
+cache_dir = f'{os.getcwd()}/{book_format}_{BOOK_ID}/'
 try:
 	os.mkdir(cache_dir)
 except FileExistsError:
 	pass
 
 # convert html files to pdf
-print('building pdf...')
-page_no = 0
+async def html2pdf():
+
+	# start headless chrome
+	browser = await launch(options={
+			'headless': True,
+			'args': [
+				'--no-sandbox',
+				'--disable-setuid-sandbox',
+				'--disable-dev-shm-usage',
+				'--disable-accelerated-2d-canvas',
+				'--no-first-run',
+				'--no-zygote',
+				'--single-process',
+				'--disable-gpu',
+				'--disable-web-security',
+				'--webkit-print-color-adjust'
+			],
+		},
+	)
+	page = await browser.newPage()
+
+	for chapter_no in contents:
+
+		# download cover separately
+		if chapter_no == 0:
+			r = requests.get(f"https://api.perlego.com/metadata/v2/metadata/books/{BOOK_ID}")
+			cover_url = json.loads(r.text)['data']['results'][0]['cover']
+			img = Image.open(BytesIO(requests.get(cover_url).content))
+			img.save(f'{cache_dir}/0.pdf')
+			continue
+
+		# merge chunks
+		content = ""
+		for chunk_no in sorted(contents[chapter_no]):
+			content += contents[chapter_no][chunk_no]
+
+		# remove useless img (mess up with pdf gen)
+		if book_format == 'EPUB':
+			match = re.search('<img id="trigger" data-chapterid="[0-9]*?" src="" onerror="LoadChapter\(\'[0-9]*?\'\)" />', content).group(0)
+			if match: content = content.replace(match, '')
+
+		# reveal hidden images
+		imgs = re.findall("<img.*?>", content, re.S)
+		for img in imgs:
+			img_new = img.replace('opacity: 0', 'opacity: 1')
+			img_new = img_new.replace('data-src', 'src')
+			content = content.replace(img, img_new)
+
+		# save page in the cache dir
+		f = open(f'{cache_dir}/{chapter_no}.html', 'w', encoding='utf-8')
+		f.write(content)
+		f.close()
+
+		# render html
+		await page.goto(f'file://{cache_dir}/{chapter_no}.html', {"waitUntil" : ["load", "domcontentloaded", "networkidle0", "networkidle2"]})
+
+		# set pdf options
+		options = {'path': f'{cache_dir}/{chapter_no}.pdf'}
+		if book_format == 'PDF':
+			width, height = await page.evaluate("() => { return [document.documentElement.offsetWidth + 1, document.documentElement.offsetHeight + 1]}")
+			options['width'] = width
+			options['height'] =  height
+		elif book_format == 'EPUB':
+			options['margin'] = {'top': '10', 'bottom': '10', 'left': '10', 'right': '10'}
+			
+		# build pdf
+		await page.pdf(options)
+
+		print(f"{chapter_no}.pdf created")
+
+	await browser.close()
+
+asyncio.get_event_loop().run_until_complete(html2pdf())
+
+# merge pdfs
+print('merging pdf pages...')
+merger = PdfMerger()
 
 for chapter_no in contents:
+	merger.append(f'{cache_dir}/{chapter_no}.pdf')
 
-	# merge chunks
-	content = ""
-	for chunk_no in sorted(contents[chapter_no]):
-		content += contents[chapter_no][chunk_no]
-
-	# replace svg (see https://stackoverflow.com/questions/12395541/wkhtmltopdf-failure-when-embed-an-svg)
-	svgs = re.findall("<svg.*?</svg>", content, re.S)
-	for svg in svgs:
-		url = re.search('xlink:href="(.*?)"', svg).group(1)
-		height = re.search('height="([0-9]*)"', svg).group(1)
-		width = re.search('width="([0-9]*)"', svg).group(1)
-		content = content.replace(svg, f'<img src="{url}" width="{width}" height="{height}">')
-
-	# replace picture
-	pictures = re.findall("<picture.*?</picture>", content, re.S)
-	for picture in pictures:
-		url = re.search('data-src="(.*?)"', picture).group(1)
-		content = content.replace(picture, f'<img src="{url}">')
-
-	# reveal hidden images
-	imgs = re.findall("<img.*?>", content, re.S)
-	for img in imgs:
-		img_new = img.replace('opacity: 0', 'opacity: 1')
-		img_new = img_new.replace('data-src', 'src')
-		content = content.replace(img, img_new)
-
-	# replace objects
-	objects = re.findall("<object.*?</object>", content, re.S)
-	for obj in objects:
-		src = re.search('data="(.*?)"', obj).group(1)
-		if 'base64,' in src:
-			b64 = base64.b64decode(src.split('base64,')[1]).decode('utf-8')
-			content = content.replace(obj, b64)
-		else:
-			obj_new = obj.replace('</object>', '')
-			obj_new = obj_new.replace('object', 'img')
-			obj_new = obj_new.replace('data="', 'src="')
-			content = content.replace(obj, obj_new)
-
-	# save page in the cache dir
-	f = open(f'{book_format}_{BOOK_ID}/{page_no}.html', 'w', encoding='utf-8')
-	f.write(content)
-	f.close()
-
-	page_no += 1
-
-pdfkit.from_file([f'{book_format}_{BOOK_ID}/{i}.html' for i in range(page_no)], f'{BOOK_ID}.pdf', options={'encoding': 'UTF-8', 'enable-local-file-access': None})
-print(f'{BOOK_ID}.pdf created!')
+merger.write(f"{BOOK_ID}.pdf")
+merger.close()
 
 # delete cache dir
 shutil.rmtree(f'{book_format}_{BOOK_ID}')
