@@ -181,7 +181,7 @@ async def html2pdf():
 
 	await browser.close()
 
-asyncio.get_event_loop().run_until_complete(html2pdf())
+asyncio.run(html2pdf())
 
 # merge pdfs
 print('merging pdf pages...')
