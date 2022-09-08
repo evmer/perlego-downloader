@@ -123,7 +123,8 @@ async def html2pdf():
 				'--single-process',
 				'--disable-gpu',
 				'--disable-web-security',
-				'--webkit-print-color-adjust'
+				'--webkit-print-color-adjust',
+				'--disable-extensions'
 			],
 		},
 	)
