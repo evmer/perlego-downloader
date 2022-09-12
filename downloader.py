@@ -40,6 +40,8 @@ while True:
 
 	ws = init_book_delivery()
 
+	init_data = {}
+
 	while True:
 		try:
 			data = json.loads(ws.recv())
@@ -57,7 +59,20 @@ while True:
 				for i in chapters[page_id]: contents[i] = {}
 				continue
 
-			data_content = json.loads(json.loads(data['data']['content']))
+			chunk_no = data['data']['chunkNumber']
+			init_data[chunk_no] = data['data']['content']
+
+			# download all the chunks before proceeding
+			if len(init_data) != data['data']['numberOfChunks']: continue
+
+			# merge initialisation content
+			data_content = ""
+			for chunk_no in sorted(init_data):
+				data_content += init_data[chunk_no]
+
+			# extract relevant data
+
+			data_content = json.loads(json.loads(data_content))
 			book_format = data_content['bookType']
 			merged_chapter_part_idx = 0
 
@@ -191,7 +206,6 @@ async def html2pdf():
 			options['height'] =  height
 		elif book_format == 'EPUB':
 			options['margin'] = {'top': '10', 'bottom': '10', 'left': '10', 'right': '10'}
-			options['width'] = 793
 			
 		# build pdf
 		await page.pdf(options)
