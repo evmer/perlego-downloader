@@ -146,6 +146,7 @@ async def html2pdf():
 	# start headless chrome
 	browser = await launch(options={
 			'headless': True,
+			'autoClose': False,
 			'args': [
 				'--no-sandbox',
 				'--disable-setuid-sandbox',
