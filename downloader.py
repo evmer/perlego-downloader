@@ -16,12 +16,12 @@ from PyPDF2 import PdfMerger
 BOOK_ID = "#BOOK_ID#"
 AUTH_TOKEN = "#AUTH_TOKEN#"
 
-# download pages content
-while True:
+def init_book_delivery():
 	while True:
 		try:
-			ws = websocket.create_connection("wss://api-ws.perlego.com/book-delivery/", skip_utf8_validation=True)
-		except Exception:
+			ws = websocket.create_connection("wss://api-ws.perlego.com/book-delivery/", skip_utf8_validation=True, timeout=30)
+		except Exception as error:
+			print(f'init_book_delivery() error: {error}')
 			continue
 		break
 
@@ -29,19 +29,39 @@ while True:
 
 	ws.send(json.dumps({"action":"initialise","data":{"authToken": AUTH_TOKEN, "reCaptchaToken": AUTH_TOKEN, "bookId": str(BOOK_ID)}}))
 
-	page_loaded = False
+	return ws
+
+# download pages content
+while True:
+
+	chapters = {}
+	contents = {}
+	page_id = None
+
+	ws = init_book_delivery()
 
 	while True:
-		data = json.loads(ws.recv())
+		try:
+			data = json.loads(ws.recv())
+		except Exception as error:
+			print(f'download error: {error}')
+			ws = init_book_delivery()
+			continue
 
 		if data['event'] == 'initialisationDataChunk':
+			if page_id != None: # we're here because ws conn broke, so we can resume from last page_id
+				ws.send(json.dumps({"action":"loadPage","data":{"authToken": AUTH_TOKEN, "pageId": page_id, "bookType": book_format, "windowWidth":1792, "mergedChapterPartIndex":0}}))
+				merged_chapter_part_idx = 0
+				# reset latest content
+				contents[page_id] = {}
+				for i in chapters[page_id]: contents[i] = {}
+				continue
+
 			data_content = json.loads(json.loads(data['data']['content']))
 			book_format = data_content['bookType']
 			merged_chapter_part_idx = 0
 
 			if book_format == 'EPUB':
-				chapters = {}
-				contents = {}
 				bookmap = data_content['bookMap']
 				for chapter_no in bookmap:
 					chapters[int(chapter_no)] = []
@@ -51,8 +71,6 @@ while True:
 						contents[subchapter_no] = {}
 
 			elif book_format == 'PDF':
-				chapters = {}
-				contents = {}
 				for i in range(1, data_content['numberOfChapters'] + 1):
 					chapters[i] = []
 					contents[i] = {}
@@ -173,6 +191,7 @@ async def html2pdf():
 			options['height'] =  height
 		elif book_format == 'EPUB':
 			options['margin'] = {'top': '10', 'bottom': '10', 'left': '10', 'right': '10'}
+			options['width'] = 793
 			
 		# build pdf
 		await page.pdf(options)
