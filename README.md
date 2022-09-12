@@ -29,7 +29,7 @@ Windows users may encounter the following error messages running the script:
 This issue can be solved reinstalling the chrome client with:
 >$ pyppeteer-install.exe
 
-If the issue persists, please try to manually (re)install [chrome](https://www.google.com/chrome/) on your computer or download the latest version of [chromedriver](https://sites.google.com/chromium.org/driver/) and add it to the system path (ie. C:/Windows).
+If the issue persists, please try to manually (re)install [chrome](https://www.google.com/chrome/) on your computer or download the correct version of [chromedriver](https://sites.google.com/chromium.org/driver/) and add it to the system path (ie. C:/Windows).
 
 ## Demonstration video
 https://www.youtube.com/watch?v=-OidkWsjzJE
