@@ -21,11 +21,15 @@ Grab the **AUTH_TOKEN** (Perlego API Authentication Bearer Token) analyzing the 
 >$ python3 downloader.py
 
 ## Troubleshoot
-Windows users may encounter a similar error message running the script:
+Windows users may encounter the following error messages running the script:
 > The application has failed to start because its side-by-side configuration is incorrect
+
+> pyppeteer.errors.BrowserError: Browser closed unexpectedly
 
 This issue can be solved reinstalling the chrome client with:
 >$ pyppeteer-install.exe
+
+If the issue persists, please try to install [chrome](https://www.google.com/chrome/) on your computer or download the [chromedriver](https://sites.google.com/chromium.org/driver/) and add it to the system path.
 
 ## Demonstration video
 https://www.youtube.com/watch?v=-OidkWsjzJE
