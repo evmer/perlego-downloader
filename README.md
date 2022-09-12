@@ -20,6 +20,13 @@ Grab the **AUTH_TOKEN** (Perlego API Authentication Bearer Token) analyzing the 
 ## Run!
 >$ python3 downloader.py
 
+## Troubleshoot
+Windows users may encounter a similar error message running the script:
+> The application has failed to start because its side-by-side configuration is incorrect
+
+This issue can be solved reinstalling the chrome client with:
+>$ pyppeteer-install.exe
+
 ## Demonstration video
 https://www.youtube.com/watch?v=-OidkWsjzJE
 
