@@ -36,6 +36,17 @@ def init_book_delivery():
 
 	return ws
 
+class merged_chapter:
+	def __init__(self):
+		self.merged_chapter_number = 1
+
+class chapter:
+	def __init__(self):
+		self.page_id = 1
+
+		self.contents = {}
+
+
 # download pages content
 while True:
 
@@ -70,13 +81,12 @@ while True:
 			# download all the chunks before proceeding
 			if len(init_data) != data['data']['numberOfChunks']: continue
 
-			# merge initialisation content
+			# merge the initialisation content
 			data_content = ""
 			for chunk_no in sorted(init_data):
 				data_content += init_data[chunk_no]
 
-			# extract relevant data
-
+			# extract the relevant data
 			data_content = json.loads(json.loads(data_content))
 			book_format = data_content['bookType']
 			merged_chapter_part_idx = 0
@@ -89,12 +99,10 @@ while True:
 					for subchapter_no in bookmap[chapter_no]:
 						chapters[int(chapter_no)].append(subchapter_no)
 						contents[subchapter_no] = {}
-
 			elif book_format == 'PDF':
 				for i in range(1, data_content['numberOfChapters'] + 1):
 					chapters[i] = []
 					contents[i] = {}
-
 			else:
 				raise Exception(f'unknown book format ({book_format})!')
 
@@ -112,29 +120,36 @@ while True:
 
 			chapter_no = page_id + merged_chapter_no + merged_chapter_part_idx
 
+			if contents.get(chapter_no) == None:
+				contents[chapter_no] = {}
+				chapters[page_id].append(chapter_no)
+
 			if contents[chapter_no] == {}:
 				for i in range(number_of_chunks):
 					contents[chapter_no][i] = ""
 
 			contents[chapter_no][chunk_no] = data['data']['content']
 
+			# check if all merged chapters have been downloaded
+			if not all(contents.get(i) not in [None, {}] for i in range(page_id, page_id+number_of_merged_chapters+merged_chapter_part_idx)): continue
+
 			# check if all chunks of all merged pages/chapters have been downloaded
-			if all(contents[i] != {} and all(chunk != "" for chunk in contents[i].values()) for i in range(page_id, page_id+number_of_merged_chapters+merged_chapter_part_idx)):
+			if not all( all(chunk != "" for chunk in contents[i].values() ) for i in range(page_id, page_id+number_of_merged_chapters+merged_chapter_part_idx)): continue
 
-				# check if all pages/chapters have been downloaded
-				if all(contents[i] != {} for i in [page_id]+chapters[page_id]):
+			# check if all pages/chapters have been downloaded
+			if all(contents[i] != {} for i in [page_id]+chapters[page_id]):
 
-					print(f"{'chapters' if book_format == 'EPUB' else 'page'} {'-'.join(str(i) for i in range(page_id, page_id+number_of_merged_chapters+merged_chapter_part_idx))} downloaded")
-					merged_chapter_part_idx = 0
-					try:
-						next_page = list(chapters)[list(chapters).index(page_id) + 1]
-					except IndexError:
-						break
-				else:
-					merged_chapter_part_idx += 1
-					next_page = page_id
+				print(f"{'chapters' if book_format == 'EPUB' else 'page'} {page_id}-{page_id+number_of_merged_chapters+merged_chapter_part_idx} downloaded")
+				merged_chapter_part_idx = 0
+				try:
+					next_page = list(chapters)[list(chapters).index(page_id) + 1]
+				except IndexError:
+					break
+			else:
+				merged_chapter_part_idx += 1
+				next_page = page_id
 
-				ws.send(json.dumps({"action":"loadPage","data":{"authToken": AUTH_TOKEN, "pageId": str(next_page), "bookType": book_format, "windowWidth":1792, "mergedChapterPartIndex":merged_chapter_part_idx}}))
+			ws.send(json.dumps({"action":"loadPage","data":{"authToken": AUTH_TOKEN, "pageId": str(next_page), "bookType": book_format, "windowWidth":1792, "mergedChapterPartIndex":merged_chapter_part_idx}}))
 
 	break
 
@@ -215,7 +230,7 @@ async def html2pdf():
 				options['width'] = width
 				options['height'] =  height
 			elif book_format == 'EPUB':
-				options['margin'] = {'top': '10', 'bottom': '10', 'left': '10', 'right': '10'}
+				options['margin'] = {'top': '20', 'bottom': '20', 'left': '20', 'right': '20'}
 				
 			# build pdf
 			await page.pdf(options)
@@ -233,7 +248,7 @@ asyncio.run(html2pdf())
 print('merging pdf pages...')
 merger = PdfMerger()
 
-for chapter_no in contents:
+for chapter_no in sorted(contents):
 	merger.append(f'{cache_dir}/{chapter_no}.pdf')
 
 merger.write(f"{BOOK_ID}.pdf")
