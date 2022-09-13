@@ -1,6 +1,7 @@
 from io import BytesIO
 from PIL import Image
 import asyncio
+import uvloop
 import shutil
 import base64
 import time
@@ -17,6 +18,8 @@ BOOK_ID = "#BOOK_ID#"
 AUTH_TOKEN = "#AUTH_TOKEN#"
 
 PUPPETEER_THREADS = 50
+
+uvloop.install()
 
 def init_book_delivery():
 	while True:
