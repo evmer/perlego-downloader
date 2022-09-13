@@ -16,6 +16,8 @@ from PyPDF2 import PdfMerger
 BOOK_ID = "#BOOK_ID#"
 AUTH_TOKEN = "#AUTH_TOKEN#"
 
+PUPPETEER_THREADS = 50
+
 def init_book_delivery():
 	while True:
 		try:
@@ -162,56 +164,63 @@ async def html2pdf():
 			],
 		},
 	)
-	page = await browser.newPage()
 
-	for chapter_no in contents:
+	async def render_page(chapter_no, semaphore):
 
-		# download cover separately
-		if chapter_no == 0:
-			r = requests.get(f"https://api.perlego.com/metadata/v2/metadata/books/{BOOK_ID}")
-			cover_url = json.loads(r.text)['data']['results'][0]['cover']
-			img = Image.open(BytesIO(requests.get(cover_url).content))
-			img.save(f'{cache_dir}/0.pdf')
-			continue
+		async with sem:
 
-		# merge chunks
-		content = ""
-		for chunk_no in sorted(contents[chapter_no]):
-			content += contents[chapter_no][chunk_no]
+			page = await browser.newPage()
+			await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36')
 
-		# remove useless img (mess up with pdf gen)
-		if book_format == 'EPUB':
-			match = re.search('<img id="trigger" data-chapterid="[0-9]*?" src="" onerror="LoadChapter\(\'[0-9]*?\'\)" />', content).group(0)
-			if match: content = content.replace(match, '')
+			# download cover separately
+			if chapter_no == 0:
+				r = requests.get(f"https://api.perlego.com/metadata/v2/metadata/books/{BOOK_ID}")
+				cover_url = json.loads(r.text)['data']['results'][0]['cover']
+				img = Image.open(BytesIO(requests.get(cover_url).content))
+				img.save(f'{cache_dir}/0.pdf')
+				return
 
-		# reveal hidden images
-		imgs = re.findall("<img.*?>", content, re.S)
-		for img in imgs:
-			img_new = img.replace('opacity: 0', 'opacity: 1')
-			img_new = img_new.replace('data-src', 'src')
-			content = content.replace(img, img_new)
+			# merge chunks
+			content = ""
+			for chunk_no in sorted(contents[chapter_no]):
+				content += contents[chapter_no][chunk_no]
 
-		# save page in the cache dir
-		f = open(f'{cache_dir}/{chapter_no}.html', 'w', encoding='utf-8')
-		f.write(content)
-		f.close()
+			# remove useless img (mess up with pdf gen)
+			if book_format == 'EPUB':
+				match = re.search('<img id="trigger" data-chapterid="[0-9]*?" src="" onerror="LoadChapter\(\'[0-9]*?\'\)" />', content).group(0)
+				if match: content = content.replace(match, '')
 
-		# render html
-		await page.goto(f'file://{cache_dir}/{chapter_no}.html', {"waitUntil" : ["load", "domcontentloaded", "networkidle0", "networkidle2"]})
+			# reveal hidden images
+			imgs = re.findall("<img.*?>", content, re.S)
+			for img in imgs:
+				img_new = img.replace('opacity: 0', 'opacity: 1')
+				img_new = img_new.replace('data-src', 'src')
+				content = content.replace(img, img_new)
 
-		# set pdf options
-		options = {'path': f'{cache_dir}/{chapter_no}.pdf'}
-		if book_format == 'PDF':
-			width, height = await page.evaluate("() => { return [document.documentElement.offsetWidth + 1, document.documentElement.offsetHeight + 1]}")
-			options['width'] = width
-			options['height'] =  height
-		elif book_format == 'EPUB':
-			options['margin'] = {'top': '10', 'bottom': '10', 'left': '10', 'right': '10'}
-			
-		# build pdf
-		await page.pdf(options)
+			# save page in the cache dir
+			f = open(f'{cache_dir}/{chapter_no}.html', 'w', encoding='utf-8')
+			f.write(content)
+			f.close()
 
-		print(f"{chapter_no}.pdf created")
+			# render html
+			await page.goto(f'file://{cache_dir}/{chapter_no}.html', {"waitUntil" : ["load", "domcontentloaded", "networkidle0", "networkidle2"]})
+
+			# set pdf options
+			options = {'path': f'{cache_dir}/{chapter_no}.pdf'}
+			if book_format == 'PDF':
+				width, height = await page.evaluate("() => { return [document.documentElement.offsetWidth + 1, document.documentElement.offsetHeight + 1]}")
+				options['width'] = width
+				options['height'] =  height
+			elif book_format == 'EPUB':
+				options['margin'] = {'top': '10', 'bottom': '10', 'left': '10', 'right': '10'}
+				
+			# build pdf
+			await page.pdf(options)
+
+			print(f"{chapter_no}.pdf created")
+
+	sem = asyncio.Semaphore(PUPPETEER_THREADS)
+	await asyncio.gather(*[render_page(chapter_no, sem) for chapter_no in contents])
 
 	await browser.close()
 
