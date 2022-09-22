@@ -214,6 +214,7 @@ async def html2pdf():
 
 			# save page in the cache dir
 			f = open(f'{cache_dir}/{chapter_no}.html', 'w', encoding='utf-8')
+			f.write('<meta charset="utf-8" />\n')
 			f.write(content)
 			f.close()
 
