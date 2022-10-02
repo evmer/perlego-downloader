@@ -219,7 +219,7 @@ async def html2pdf():
 			f.close()
 
 			# render html
-			await page.goto(f'file://{cache_dir}/{chapter_no}.html', {"waitUntil" : ["load", "domcontentloaded", "networkidle0", "networkidle2"]})
+			await page.goto(f'file://{cache_dir}/{chapter_no}.html', {"waitUntil" : ["load", "domcontentloaded", "networkidle0", "networkidle2"], "timeout": 0})
 
 			# set pdf options
 			options = {'path': f'{cache_dir}/{chapter_no}.pdf'}
