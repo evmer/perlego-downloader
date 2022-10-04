@@ -2,4 +2,3 @@ requests==2.28.1
 websocket-client==1.4.0
 pyppeteer==1.0.2
 PyPDF2==2.10.5
-uvloop==0.16.0
