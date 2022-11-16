@@ -17,6 +17,8 @@ Grab the **AUTH_TOKEN** (Perlego API Authentication Bearer Token) analyzing the 
 
 ![perlego-downloader](https://i.postimg.cc/QhZwXHbL/Screenshot-2022-09-01-at-09-55-15.png)
 
+**NOTE**: Copy the token without the prefix ```Bearer```!
+
 ## Run!
 >$ python3 downloader.py
 
