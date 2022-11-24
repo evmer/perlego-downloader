@@ -8,16 +8,9 @@ Install Python 3 and run:
   >$ pip3 install -r requirements.txt
 
 ## Configuration
-Edit *BOOK_ID* and *AUTH_TOKEN* constants in downloader.py.
+Please watch the [demonstration video](https://youtu.be/X4msqCulOYk).
 
-You can find the **BOOK_ID** in the Perlego's book page URL:
-![perlego-downloader](https://i.postimg.cc/r8qtcCdd/Screenshot-2022-09-01-at-09-57-38.png)
-
-Grab the **AUTH_TOKEN** (Perlego API Authentication Bearer Token) analyzing the browser traffic (look at the Network tab of Chrome's Inspect Element):
-
-![perlego-downloader](https://i.postimg.cc/QhZwXHbL/Screenshot-2022-09-01-at-09-55-15.png)
-
-**NOTE**: Copy the token without the prefix ```Bearer```!
+You'll need to find the *authToken*, *bookId* and *reCaptchaToken* analyzing the browser/websocket traffic and replace the constants in downloader.py.
 
 ## Run!
 >$ python3 downloader.py
@@ -32,11 +25,6 @@ This issue can be solved reinstalling the chrome client with:
 >$ pyppeteer-install.exe
 
 If the issue persists, please try to manually (re)install [chrome](https://www.google.com/chrome/) on your computer or download the correct version of [chromedriver](https://sites.google.com/chromium.org/driver/) and add it to the system path (ie. C:/Windows).
-
-## Demonstration video
-https://www.youtube.com/watch?v=-OidkWsjzJE
-
-[![perlego-downloader](https://img.youtube.com/vi/-OidkWsjzJE/0.jpg)](https://www.youtube.com/watch?v=-OidkWsjzJE)
 
 # DISCLAIMER:
 The code is not intended for piracy or unlawful re-sharing purposes. You can only download the books you have purchased for the sole purpose of personal use. I do not take responsibility for illegal use of the software.
