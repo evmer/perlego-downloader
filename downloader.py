@@ -3,8 +3,10 @@ from PIL import Image
 import asyncio
 import shutil
 import base64
+import shutil
 import time
 import json
+import sys
 import re
 import os
 
@@ -13,8 +15,9 @@ import websocket
 from pyppeteer import launch
 from PyPDF2 import PdfMerger
 
-BOOK_ID = "#BOOK_ID#"
-AUTH_TOKEN = "#AUTH_TOKEN#"
+AUTH_TOKEN = ""
+BOOK_ID = ""
+RECAPTCHA = ""
 
 PUPPETEER_THREADS = 50
 
@@ -29,7 +32,7 @@ def init_book_delivery():
 
 	time.sleep(1)
 
-	ws.send(json.dumps({"action":"initialise","data":{"authToken": AUTH_TOKEN, "reCaptchaToken": AUTH_TOKEN, "bookId": str(BOOK_ID)}}))
+	ws.send(json.dumps({"action":"initialise","data":{"authToken": AUTH_TOKEN, "reCaptchaToken": RECAPTCHA, "bookId": str(BOOK_ID)}}))
 
 	return ws
 
@@ -63,7 +66,10 @@ while True:
 			ws = init_book_delivery()
 			continue
 
-		if data['event'] == 'initialisationDataChunk':
+		if data['event'] == 'error':
+			sys.exit(data)
+
+		elif data['event'] == 'initialisationDataChunk':
 			if page_id != None: # we're here because ws conn broke, so we can resume from last page_id
 				ws.send(json.dumps({"action":"loadPage","data":{"authToken": AUTH_TOKEN, "pageId": page_id, "bookType": book_format, "windowWidth":1792, "mergedChapterPartIndex":0}}))
 				merged_chapter_part_idx = 0
@@ -214,7 +220,6 @@ async def html2pdf():
 
 			# save page in the cache dir
 			f = open(f'{cache_dir}/{chapter_no}.html', 'w', encoding='utf-8')
-			f.write('<meta charset="utf-8" />\n')
 			f.write(content)
 			f.close()
 
