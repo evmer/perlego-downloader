@@ -24,7 +24,7 @@ PUPPETEER_THREADS = 50
 def init_book_delivery():
 	while True:
 		try:
-			ws = websocket.create_connection("wss://api-ws.perlego.com/book-delivery/", skip_utf8_validation=True, timeout=30)
+			ws = websocket.create_connection("wss://api-ws.perlego.com/book-delivery/", skip_utf8_validation=True, timeout=30,  sslopt={"cert_reqs": ssl.CERT_NONE, "check_hostname": False})	
 		except Exception as error:
 			print(f'init_book_delivery() error: {error}')
 			continue
