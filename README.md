@@ -24,7 +24,15 @@ Windows users may encounter the following error messages running the script:
 This issue can be solved reinstalling the chrome client with:
 >$ pyppeteer-install.exe
 
-If the issue persists, please try to manually (re)install [chrome](https://www.google.com/chrome/) on your computer or download the correct version of [chromedriver](https://sites.google.com/chromium.org/driver/) and add it to the system path (ie. C:/Windows).
+If the issue persists, please try:
+1) to manually (re)install [chrome](https://www.google.com/chrome/) on your computer or download the correct version of [chromedriver](https://sites.google.com/chromium.org/driver/) and add it to the system path (ie. C:/Windows);
+2) modify line 171 adding `executablePath` with the correct path of Chrome executable:
+
+```
+			'headless': True,
+			'autoClose': False,
+			'executablePath': 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+```
 
 # DISCLAIMER:
 The code is not intended for piracy or unlawful re-sharing purposes. You can only download the books you have purchased for the sole purpose of personal use. I do not take responsibility for illegal use of the software.
