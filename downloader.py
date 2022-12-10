@@ -249,13 +249,16 @@ async def html2pdf():
 asyncio.run(html2pdf())
 
 # merge pdfs
+rel = requests.get(f"https://api.perlego.com/metadata/v2/metadata/books/{BOOK_ID}")
+book_title = json.loads(rel.text)['data']['results'][0]['title']
+
 print('merging pdf pages...')
 merger = PdfMerger()
 
 for chapter_no in sorted(contents):
 	merger.append(f'{cache_dir}/{chapter_no}.pdf')
 
-merger.write(f"{BOOK_ID}.pdf")
+merger.write(f"{book_title}.pdf")
 merger.close()
 
 # delete cache dir
