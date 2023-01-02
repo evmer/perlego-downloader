@@ -238,11 +238,12 @@ async def html2pdf():
 				
 			# build pdf
 			await page.pdf(options)
+			await page.close()
 
 			print(f"{chapter_no}.pdf created")
 
 	sem = asyncio.Semaphore(PUPPETEER_THREADS)
-	await asyncio.gather(*[render_page(chapter_no, sem) for chapter_no in contents])
+	await asyncio.gather(*[render_page(chapter_no, sem) for chapter_no in contents if not os.path.exists(f'{cache_dir}/{chapter_no}.pdf')])
 
 	await browser.close()
 
