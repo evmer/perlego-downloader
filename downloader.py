@@ -17,7 +17,7 @@ from pyppeteer import launch
 from PyPDF2 import PdfMerger
 
 AUTH_TOKEN = ""
-BOOK_ID = ""
+BOOK_ID = input("Please specify book ID:\n")
 RECAPTCHA = ""
 
 PUPPETEER_THREADS = 50
