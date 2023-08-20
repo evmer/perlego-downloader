@@ -3,3 +3,4 @@ websocket-client==1.4.0
 pyppeteer==1.0.2
 PyPDF2==2.10.5
 Pillow==8.4.0
+fitz==0.0.1

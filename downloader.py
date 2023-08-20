@@ -10,7 +10,7 @@ import sys
 import ssl
 import re
 import os
-
+import fitz  
 import requests
 import websocket
 from pyppeteer import launch
@@ -21,6 +21,15 @@ BOOK_ID = ""
 RECAPTCHA = ""
 
 PUPPETEER_THREADS = 50
+
+
+TOKEN_LIST = [
+	"CHAPTER_1_Token",
+	"CHAPTER_2_Token"
+	#Add tokens for all chapters here
+	]
+
+tokenIndex = 1
 
 def init_book_delivery():
 	while True:
@@ -110,7 +119,7 @@ while True:
 			else:
 				raise Exception(f'unknown book format ({book_format})!')
 
-			ws.send(json.dumps({"action":"loadPage","data":{"authToken": AUTH_TOKEN, "pageId": list(chapters)[0], "bookType": book_format, "windowWidth":1792, "mergedChapterPartIndex":0}}))
+			ws.send(json.dumps({"action":"loadPage","data":TOKEN_LIST[0]}))
 
 
 		elif 'pageChunk' in data['event']:
@@ -153,7 +162,11 @@ while True:
 				merged_chapter_part_idx += 1
 				next_page = page_id
 
-			ws.send(json.dumps({"action":"loadPage","data":{"authToken": AUTH_TOKEN, "pageId": str(next_page), "bookType": book_format, "windowWidth":1792, "mergedChapterPartIndex":merged_chapter_part_idx}}))
+			ws.send(json.dumps({"action":"loadPage","data":TOKEN_LIST[tokenIndex+1]}))
+			tokenIndex = tokenIndex + 1
+			if (tokenIndex+1 == len(TOKEN_LIST)):
+				break
+
 
 	break
 
@@ -209,8 +222,10 @@ async def html2pdf():
 
 			# remove useless img (mess up with pdf gen)
 			if book_format == 'EPUB':
-				match = re.search('<img id="trigger" data-chapterid="[0-9]*?" src="" onerror="LoadChapter\(\'[0-9]*?\'\)" />', content).group(0)
-				if match: content = content.replace(match, '')
+				match = re.search('<img id="trigger" data-chapterid="[0-9]*?" src="" onerror="LoadChapter\(\'[0-9]*?\'\)" />', content)
+				if match:
+					content = content.replace(match.group(0), '')
+
 
 			# reveal hidden images
 			imgs = re.findall("<img.*?>", content, re.S)
@@ -234,13 +249,12 @@ async def html2pdf():
 				options['width'] = width
 				options['height'] =  height
 			elif book_format == 'EPUB':
-				options['margin'] = {'top': '20', 'bottom': '20', 'left': '20', 'right': '20'}
+				options['margin'] = {'top': '20', 'bottom': '20', 'left': '40', 'right': '40'}
 				
 			# build pdf
 			await page.pdf(options)
 			await page.close()
 
-			print(f"{chapter_no}.pdf created")
 
 	sem = asyncio.Semaphore(PUPPETEER_THREADS)
 	await asyncio.gather(*[render_page(chapter_no, sem) for chapter_no in contents if not os.path.exists(f'{cache_dir}/{chapter_no}.pdf')])
@@ -256,8 +270,48 @@ book_title = json.loads(rel.text)['data']['results'][0]['title']
 print('merging pdf pages...')
 merger = PdfMerger()
 
+contents_value = contents  # Copy the value of 'contents'
+contents_type = type(contents)  # Get the type of 'contents'
+
+keys_list = list(contents.keys())
 for chapter_no in sorted(contents):
-	merger.append(f'{cache_dir}/{chapter_no}.pdf')
+	chapter_pdf_path = os.path.join(cache_dir, f'{chapter_no}.pdf')
+
+	# merger.append(f'{cache_dir}/{chapter_no}.pdf')
+	
+	pdf_document = fitz.open(chapter_pdf_path)
+	first_page = pdf_document[0]
+	lines = first_page.get_text("text").strip().split('\n')
+	first_line = lines[0].strip()
+	second_line = lines[1].strip() if len(lines) > 1 else ""
+	isFirstLine = True
+	is_empty_page = True
+	for page_num in range(pdf_document.page_count):
+		page = pdf_document[page_num]
+		text = page.get_text("text")
+		if text.strip():
+			is_empty_page = False
+			break
+	if not is_empty_page:
+		chapter_title = f"Chapter {chapter_no}"
+		if first_line:
+			try:
+				int(first_line)
+				isFirstLine = False
+			except ValueError:
+				print("ERROR IN GETTING LINE :", ValueError)
+		if isFirstLine:	
+			chapter_title = first_line
+		elif second_line:
+			chapter_title = second_line
+		else:
+			chapter_title = f"Chapter {chapter_no}"
+		merger.append(chapter_pdf_path, bookmark=chapter_title)
+		
+	pdf_document.close()
+
+	# merger.append(chapter_pdf_path, bookmark=chapter_title)
+
 
 merger.write(f"{book_title}.pdf")
 merger.close()

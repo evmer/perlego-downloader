@@ -12,6 +12,10 @@ Please watch the [demonstration video](https://youtu.be/X4msqCulOYk).
 
 You'll need to find the *authToken*, *bookId* and *reCaptchaToken* analyzing the browser/websocket traffic and replace the constants in downloader.py.
 
+UPDATE : 
+
+You'll need to add "data" value as well by analyzing the browser/websocket from the "loadData" event for all chapters in TOKEN_LIST
+
 ## Run!
 >$ python3 downloader.py
 
